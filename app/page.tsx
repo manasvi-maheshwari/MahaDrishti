@@ -52,6 +52,19 @@ export default function App() {
 });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  useEffect(() => {
+  if (!showLanding) {
+    window.history.pushState(null, "", window.location.href);
+    const handler = () => {
+      setShowLanding(true);
+      setView("authority");
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }
+}, [showLanding]);
+
   const fetchData = useCallback(async () => {
     setIsRefreshing(true);
     try {
