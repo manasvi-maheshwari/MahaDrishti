@@ -149,8 +149,7 @@ export default function App() {
 }}
     />
   );
-  if (view === "pilgrim") return <PilgrimView routes={routes} alerts={alerts} onBack={() => setView("authority")} />;
-
+  if (view === "pilgrim") return <PilgrimView routes={routes} alerts={alerts} onBack={() => setShowLanding(true)} />;
   const cardStyle = {
     background: S.indigoMid,
     border: `1px solid rgba(255,107,26,0.15)`,
