@@ -194,7 +194,7 @@ export function generateHourlyForecast(locationId: string) {
     const loc = LOCATIONS.find((l) => l.id === locationId);
     const cap = loc?.capacity ?? 100000;
     const factor = locationId === "triveni" ? 1.0 : 0.75;
-    const predicted = Math.floor(cap * base * factor * getBaseLoadForType(loc?.type ?? "ghat") * (0.90 + Math.random() * 0.20));
+    const predicted = Math.floor(cap * base * factor * getBaseLoadForType(loc?.type ?? "Ghat") * (0.90 + Math.random() * 0.20));
 
     forecasts.push({
       hour: futureHour.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
