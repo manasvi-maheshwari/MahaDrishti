@@ -67,6 +67,18 @@ body { margin: 0; }
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: shimmer 4s linear infinite;
+  display: inline;
+}
+
+.shimmer-text font {
+  background: inherit !important;
+  background-size: inherit !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  animation: shimmer 4s linear infinite !important;
+  display: inline !important;
+  box-shadow: none !important;
 }
 
 .float-anim {

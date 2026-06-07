@@ -193,6 +193,7 @@ export default function LandingPage({ onEnter }: { onEnter: () => void }) {
           </p>
           <h1
             className="shimmer-text"
+            translate="no"
             style={{ fontFamily: "'Yatra One', serif", fontSize: "clamp(48px, 10vw, 96px)", lineHeight: 1.05, margin: "0 0 1rem" }}
           >
             MahaDrishti
