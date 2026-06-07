@@ -1,12 +1,15 @@
-# MahaDrishti
+# MahaDrishti — महादृष्टि
 
-**Real-time crowd intelligence for MahaKumbh 2028, Prayagraj**
+**Real-time AI crowd intelligence for MahaKumbh 2028, Prayagraj**
 
-MahaDrishti is a full-stack AI-assisted decision support system built for crowd management authorities and pilgrims at MahaKumbh. It monitors 12 key locations across Prayagraj in real-time, predicts crowd surges before they happen, recommends safe routes dynamically, and generates field advisories using Google Gemini AI.
+MahaDrishti is a full-stack AI-assisted decision support system built for crowd management authorities and pilgrims at MahaKumbh 2028. It monitors 12 key locations across Prayagraj in real-time, predicts crowd surges before they happen, recommends safe routes dynamically, generates field advisories using Google Gemini AI, and supports 13 Indian languages for maximum accessibility.
 
 ---
 
 ## Features
+
+**Animated Landing Page**
+A fully scrollable landing experience with scroll-triggered animations, live statistics, feature highlights, critical Snan date timeline, and a call-to-action — built with Framer Motion.
 
 **Live Crowd Heatmap**
 Color-coded density circles across 12 monitored zones — ghats, temples, transport hubs, camps, and medical centers. Updated every 15 seconds via the OpenStreetMap + Leaflet stack.
@@ -29,6 +32,9 @@ A header slider simulates crowd load from 1x (normal day) to 6x (Mauni Amavasya 
 **Dual Interface**
 Authority dashboard for command centers and a separate mobile-first Pilgrim View with safe routes, active warnings, and darshan tips in plain language.
 
+**Multi-Language Support**
+Supports 13 Indian languages — Hindi, Gujarati, Marathi, Bengali, Bhojpuri, Tamil, Telugu, Kannada, Odia, Punjabi, Urdu, Maithili, and Nepali. A fixed language dropdown on every page translates the entire interface instantly.
+
 ---
 
 ## Tech Stack
@@ -41,6 +47,7 @@ Authority dashboard for command centers and a separate mobile-first Pilgrim View
 | Charts | Recharts |
 | Animations | Framer Motion |
 | AI | Google Gemini 2.5 Flash (`@google/genai`) |
+| Translation | Google Translate Widget |
 | Fonts | Yatra One (headings), DM Sans (body) |
 | Deployment | Vercel |
 
@@ -124,6 +131,27 @@ All endpoints accept an optional `?multiplier=1.0` query parameter to simulate d
 
 ---
 
+## Supported Languages
+
+| Language | Code |
+|----------|------|
+| English (default) | en |
+| Hindi — हिंदी | hi |
+| Gujarati — ગુજરાતી | gu |
+| Marathi — मराठी | mr |
+| Bengali — বাংলা | bn |
+| Bhojpuri — भोजपुरी | bho |
+| Tamil — தமிழ் | ta |
+| Telugu — తెలుగు | te |
+| Kannada — ಕನ್ನಡ | kn |
+| Odia — ଓଡ଼ିଆ | or |
+| Punjabi — ਪੰਜਾਬੀ | pa |
+| Urdu — اردو | ur |
+| Maithili — मैथिली | mai |
+| Nepali — नेपाली | ne |
+
+---
+
 ## Deployment
 
 ```bash
@@ -143,8 +171,8 @@ Add `GEMINI_API_KEY` in your Vercel project's Environment Variables settings.
 ```
 mahadrishti/
 ├── app/
-│   ├── page.tsx              # Main dashboard
-│   ├── layout.tsx            # Root layout + fonts
+│   ├── page.tsx              # Main dashboard + Pilgrim View
+│   ├── layout.tsx            # Root layout + fonts + language widget
 │   ├── globals.css           # Design tokens + animations
 │   └── api/
 │       ├── crowd-data/       # Live crowd readings
@@ -154,7 +182,8 @@ mahadrishti/
 │       └── simulate/         # Gemini AI advisory
 ├── components/
 │   ├── CrowdMap.tsx          # Leaflet heatmap component
-│   └── LandingPage.tsx       # Animated landing screen
+│   ├── LandingPage.tsx       # Animated scrollable landing page
+│   └── GoogleTranslate.tsx   # Multi-language translation widget
 ├── lib/
 │   └── crowdData.ts          # Core simulation engine
 └── public/                   # Static assets
@@ -162,4 +191,4 @@ mahadrishti/
 
 ---
 
-Built with AI-assisted development · Gemini for runtime AI advisory
+Built for MahaKumbh 2028 Hackathon · Prayagraj · Powered by Gemini AI
