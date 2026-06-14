@@ -42,7 +42,7 @@ export default function App() {
   const [advisory, setAdvisory] = useState("");
   const [advisoryLoading, setAdvisoryLoading] = useState(false);
   const [simulationMultiplier, setSimulationMultiplier] = useState(1.0);
-  const [lastUpdated, setLastUpdated] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString("en-IN"));
   const [selectedLocation, setSelectedLocation] = useState("triveni");
   const [activeTab, setActiveTab] = useState("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -105,7 +105,9 @@ export default function App() {
     const i = setInterval(fetchData, 15000);
     return () => clearInterval(i);
   }, [fetchData, fetchForecast]);
-
+  useEffect(() => {
+  setAdvisory("");
+}, [simulationMultiplier]);
   useEffect(() => { fetchForecast(); }, [selectedLocation, fetchForecast]);
 
   const getDensityColor = (d: number) => d >= 0.85 ? "#ef4444" : d >= 0.70 ? S.saffron : d >= 0.50 ? S.gold : "#22c55e";
