@@ -142,7 +142,11 @@ export default function App() {
 }}
     />
   );
-  if (view === "pilgrim") return <PilgrimView routes={routes} alerts={alerts} onBack={() => { setView("authority"); setActiveTab("overview"); }} />;
+  if (view === "pilgrim") return <PilgrimView routes={routes} alerts={alerts} onBack={() => {
+  const saved = localStorage.getItem("authorityTab") || "overview";
+  setView("authority");
+  setActiveTab(saved);
+}} />;
   const cardStyle = {
     background: S.indigoMid,
     border: `1px solid rgba(255,107,26,0.15)`,
@@ -213,7 +217,10 @@ export default function App() {
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => setView("pilgrim")}
+              onClick={() => {
+  localStorage.setItem("authorityTab", activeTab);
+  setView("pilgrim");
+}}
               style={{
                 background: "linear-gradient(135deg, #FF6B1A, #CC4E00)",
                 border: "none", borderRadius: "20px", padding: "6px 16px",
