@@ -44,12 +44,7 @@ export default function App() {
   const [simulationMultiplier, setSimulationMultiplier] = useState(1.0);
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("triveni");
-  const [activeTab, setActiveTab] = useState(() => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("selectedTab") || "overview";
-  }
-  return "overview";
-});
+  const [activeTab, setActiveTab] = useState("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
@@ -141,28 +136,13 @@ export default function App() {
   return (
     <LandingPage
       onEnter={() => {
-  const savedTab = localStorage.getItem("selectedTab");
-  const savedView = localStorage.getItem("selectedView");
-
-  if (savedTab) {
-    setActiveTab(savedTab);
-  }
-
-  if (savedView === "pilgrim") {
-    setView("pilgrim");
-    localStorage.removeItem("selectedView");
-  }
-
-  window.scrollTo({
-  top: 0,
-  behavior: "smooth",
-});
-
+  setActiveTab("overview");
+  window.scrollTo({ top: 0, behavior: "smooth" });
   setShowLanding(false);
 }}
     />
   );
-  if (view === "pilgrim") return <PilgrimView routes={routes} alerts={alerts} onBack={() => setShowLanding(true)} />;
+  if (view === "pilgrim") return <PilgrimView routes={routes} alerts={alerts} onBack={() => { setView("authority"); setActiveTab("overview"); }} />;
   const cardStyle = {
     background: S.indigoMid,
     border: `1px solid rgba(255,107,26,0.15)`,
