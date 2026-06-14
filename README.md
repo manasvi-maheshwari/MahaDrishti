@@ -1,8 +1,8 @@
-# MahaDrishti — महादृष्टि
+# MahaDrishti
 
 **Real-time AI crowd intelligence for MahaKumbh 2028, Prayagraj**
 
-MahaDrishti is a full-stack AI-assisted decision support system built for crowd management authorities and pilgrims at MahaKumbh 2028. It monitors 12 key locations across Prayagraj in real-time, predicts crowd surges before they happen, recommends safe routes dynamically, generates field advisories using Google Gemini AI, and supports 13 Indian languages for maximum accessibility.
+MahaDrishti is a full-stack AI-assisted decision support system built for crowd management authorities and pilgrims at MahaKumbh 2028. It monitors 12 key locations across Prayagraj in real-time, predicts crowd surges before they happen, recommends safe routes dynamically, generates field advisories using Google Gemini AI, and supports 11 Indian languages for maximum accessibility.
 
 ---
 
@@ -33,7 +33,7 @@ A header slider simulates crowd load from 1x (normal day) to 6x (Mauni Amavasya 
 Authority dashboard for command centers and a separate mobile-first Pilgrim View with safe routes, active warnings, and darshan tips in plain language.
 
 **Multi-Language Support**
-Supports 13 Indian languages — Hindi, Gujarati, Marathi, Bengali, Bhojpuri, Tamil, Telugu, Kannada, Odia, Punjabi, Urdu, Maithili, and Nepali. A fixed language dropdown on every page translates the entire interface instantly.
+Supports 11 Indian languages — Hindi, Gujarati, Marathi, Bengali, Bhojpuri, Tamil, Telugu, Kannada, Odia, Punjabi, and Maithili. A fixed language dropdown on every page translates the entire interface instantly.
 
 ---
 
@@ -146,9 +146,7 @@ All endpoints accept an optional `?multiplier=1.0` query parameter to simulate d
 | Kannada — ಕನ್ನಡ | kn |
 | Odia — ଓଡ଼ିଆ | or |
 | Punjabi — ਪੰਜਾਬੀ | pa |
-| Urdu — اردو | ur |
 | Maithili — मैथिली | mai |
-| Nepali — नेपाली | ne |
 
 ---
 
@@ -190,5 +188,3 @@ mahadrishti/
 ```
 
 ---
-
-Built for MahaKumbh 2028 Hackathon · Prayagraj · Powered by Gemini AI
