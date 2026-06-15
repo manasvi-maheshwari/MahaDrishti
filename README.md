@@ -143,10 +143,10 @@ All endpoints accept an optional `?multiplier=1.0` query parameter to simulate d
 | Bhojpuri — भोजपुरी | bho |
 | Tamil — தமிழ் | ta |
 | Telugu — తెలుగు | te |
-| Kannada — ಕನ್ನಡ | kn |
 | Odia — ଓଡ଼ିଆ | or |
 | Punjabi — ਪੰਜਾਬੀ | pa |
 | Maithili — मैथिली | mai |
+| Nepali — नेपाली | ne |
 
 ---
 
