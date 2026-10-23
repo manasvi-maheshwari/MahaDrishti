@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { simulateCrowdData, generateAlerts } from "@/lib/crowdData";
+import { parseMultiplier } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const multiplier = parseFloat(searchParams.get("multiplier") ?? "1.0");
+  const multiplier = parseMultiplier(request.nextUrl.searchParams.get("multiplier"));
 
   const readings = simulateCrowdData(multiplier);
   const alerts = generateAlerts(readings);

@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 declare global {
   interface Window {
     googleTranslateElementInit: () => void;
-    google: any;
+    google: {
+      translate: {
+        TranslateElement: new (options: Record<string, unknown>, elementId: string) => unknown;
+      };
+    };
   }
 }
 
@@ -15,7 +19,7 @@ export default function GoogleTranslate() {
     window.googleTranslateElementInit = function () {
       new window.google.translate.TranslateElement({
         pageLanguage: "en",
-        includedLanguages: "hi,gu,mr,bn,bho,ta,te,or,pa,mai,ne",
+        includedLanguages: "hi,gu,mr,bn,bho,ta,te,kn,or,pa,mai",
         autoDisplay: false,
       }, "google_translate_element");
     };
@@ -86,10 +90,10 @@ export default function GoogleTranslate() {
           <option value="bho">भोजपुरी</option>
           <option value="ta">தமிழ்</option>
           <option value="te">తెలుగు</option>
+          <option value="kn">ಕನ್ನಡ</option>
           <option value="or">ଓଡ଼ିଆ</option>
           <option value="pa">ਪੰਜਾਬੀ</option>
           <option value="mai">मैथिली</option>
-          <option value="ne">नेपाली</option>
         </select>
       </div>
     </>

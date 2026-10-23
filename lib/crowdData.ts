@@ -16,6 +16,14 @@ export const THRESHOLDS = {
   advisory: {
     highDensity: 0.75,
   },
+  route: {
+    avoid: 0.85,
+    caution: 0.65,
+    slow: 0.70,
+    crowdHigh: 0.80,
+    crowdMedium: 0.50,
+    junctionCaution: 0.75,
+  },
 } as const;
 
 export interface Location {
@@ -30,9 +38,11 @@ export interface Location {
 
 export interface CrowdReading {
   locationId: string;
+  locationName: string;
+  capacity: number;
   timestamp: string;
   count: number;
-  density: number; // 0-1
+  densityRatio: number; // 0-1
   trend: "rising" | "stable" | "falling";
   temperature: number;
 }
@@ -165,27 +175,27 @@ export function generateAlerts(readings: CrowdReading[]): Alert[] {
   for (const r of readings) {
     if (r.densityRatio >= THRESHOLDS.alert.critical) {
       alerts.push({
-        id: `alert-${r.locationId}-${Date.now()}`,
+        id: `alert-${r.locationId}`,
         locationId: r.locationId,
         locationName: r.locationName,
-        type: 'capacity',
+        type: 'overcrowding',
         severity: 'critical',
         message: `CRITICAL OVERCROWDING at ${r.locationName}: Capacity at ${Math.round(r.densityRatio * 100)}%`,
         timestamp: new Date().toISOString(),
       });
     } else if (r.densityRatio >= THRESHOLDS.alert.high) {
       alerts.push({
-        id: `alert-${r.locationId}-${Date.now()}`,
+        id: `alert-${r.locationId}`,
         locationId: r.locationId,
         locationName: r.locationName,
-        type: 'capacity',
+        type: 'overcrowding',
         severity: 'high',
         message: `High density alert at ${r.locationName}: Density at ${Math.round(r.densityRatio * 100)}%`,
         timestamp: new Date().toISOString(),
       });
     } else if (r.densityRatio >= THRESHOLDS.alert.surge && r.trend === 'rising') {
       alerts.push({
-        id: `alert-${r.locationId}-${Date.now()}`,
+        id: `alert-${r.locationId}`,
         locationId: r.locationId,
         locationName: r.locationName,
         type: 'surge',
@@ -211,7 +221,8 @@ export function generateHourlyForecast(locationId: string) {
     const loc = LOCATIONS.find((l) => l.id === locationId);
     const cap = loc?.capacity ?? 100000;
     const factor = locationId === "triveni" ? 1.0 : 0.75;
-    const predicted = Math.floor(cap * base * factor * getBaseLoadForType(loc?.type ?? "Ghat") * (0.90 + Math.random() * 0.20));
+    const rawPredicted = Math.floor(cap * base * factor * getBaseLoadForType(loc?.type ?? "Ghat") * (0.90 + Math.random() * 0.20));
+    const predicted = Math.min(rawPredicted, cap);
 
     forecasts.push({
       hour: futureHour.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
@@ -224,8 +235,8 @@ export function generateHourlyForecast(locationId: string) {
 }
 
 export function getRouteRecommendations(readings: CrowdReading[]): RouteOption[] {
-  const triveniDensity = readings.find((r) => r.locationId === "triveni")?.density ?? 0.5;
-  const jnDensity = readings.find((r) => r.locationId === "prayagraj_jn")?.density ?? 0.5;
+  const triveniDensity = readings.find((r) => r.locationId === "triveni")?.densityRatio ?? 0.5;
+  const jnDensity = readings.find((r) => r.locationId === "prayagraj_jn")?.densityRatio ?? 0.5;
 
   return [
     {
@@ -234,11 +245,11 @@ export function getRouteRecommendations(readings: CrowdReading[]): RouteOption[]
       from: "Prayagraj Junction",
       to: "Triveni Sangam",
       distance: "4.2 km",
-      estimatedTime: triveniDensity > 0.7 ? "45 min" : "22 min",
-      crowdLevel: triveniDensity > 0.8 ? "high" : triveniDensity > 0.5 ? "medium" : "low",
+      estimatedTime: triveniDensity > THRESHOLDS.route.slow ? "45 min" : "22 min",
+      crowdLevel: triveniDensity > THRESHOLDS.route.crowdHigh ? "high" : triveniDensity > THRESHOLDS.route.crowdMedium ? "medium" : "low",
       waypoints: [[25.4484, 81.8731], [25.4430, 81.8780], [25.4358, 81.8836]],
-      status: triveniDensity > 0.85 ? "avoid" : triveniDensity > 0.65 ? "caution" : "recommended",
-      reason: triveniDensity > 0.85 ? "Severe congestion at Sangam — divert via Ram Ghat" : "Moderate flow, standard route",
+      status: triveniDensity > THRESHOLDS.route.avoid ? "avoid" : triveniDensity > THRESHOLDS.route.caution ? "caution" : "recommended",
+      reason: triveniDensity > THRESHOLDS.route.avoid ? "Severe congestion at Sangam — divert via Ram Ghat" : "Moderate flow, standard route",
     },
     {
       id: "route-2",
@@ -282,10 +293,10 @@ export function getRouteRecommendations(readings: CrowdReading[]): RouteOption[]
       from: "Alambagh Terminal",
       to: "Ram Ghat",
       distance: "8.5 km",
-      estimatedTime: jnDensity > 0.7 ? "55 min" : "35 min",
-      crowdLevel: jnDensity > 0.7 ? "high" : "medium",
+      estimatedTime: jnDensity > THRESHOLDS.route.slow ? "55 min" : "35 min",
+      crowdLevel: jnDensity > THRESHOLDS.route.slow ? "high" : "medium",
       waypoints: [[25.4350, 81.8200], [25.4430, 81.8400], [25.4501, 81.8590]],
-      status: jnDensity > 0.75 ? "caution" : "recommended",
+      status: jnDensity > THRESHOLDS.route.junctionCaution ? "caution" : "recommended",
       reason: "Main arterial route — may experience delays during peak bathing hours",
     },
   ];
@@ -293,30 +304,30 @@ export function getRouteRecommendations(readings: CrowdReading[]): RouteOption[]
 
 export function buildSnapshot(multiplier: number = 1.0) {
   const timestamp = new Date().toISOString();
-  const rawReadings = simulateCrowdData(multiplier);
-  
-  // Calculate aggregate summary
-  const totalCrowd = rawReadings.reduce((sum, r) => sum + r.count, 0);
-  const totalCapacity = rawReadings.reduce((sum, r) => sum + r.capacity, 0);
-  const avgDensity = Math.round((totalCrowd / totalCapacity) * 100);
+  const readings = simulateCrowdData(multiplier);
+  const alerts = generateAlerts(readings);
+  const routes = getRouteRecommendations(readings);
+
+  const totalPilgrims = readings.reduce((sum, r) => sum + r.count, 0);
+  const totalCapacity = readings.reduce((sum, r) => sum + r.capacity, 0);
 
   const summary = {
-    totalCrowd,
+    totalPilgrims,
     totalCapacity,
-    avgDensity,
-    criticalZones: rawReadings.filter(r => r.densityRatio >= 0.85).length,
-    highZones: rawReadings.filter(r => r.densityRatio >= 0.70 && r.densityRatio < 0.85).length,
-    activeAlertsCount: generateAlerts(rawReadings).length
+    averageDensity: totalCapacity > 0 ? totalPilgrims / totalCapacity : 0, // 0-1
+    criticalLocations: readings.filter((r) => r.densityRatio >= THRESHOLDS.summary.critical).length,
+    highLocations: readings.filter(
+      (r) => r.densityRatio >= THRESHOLDS.summary.high && r.densityRatio < THRESHOLDS.summary.critical
+    ).length,
+    activeAlertsCount: alerts.length,
   };
-
-  const alerts = generateAlerts(rawReadings);
-  const routes = getRouteRecommendations(rawReadings);
 
   return {
     timestamp,
-    readings: rawReadings,
+    readings,
+    locations: LOCATIONS,
     summary,
     alerts,
-    routes
+    routes,
   };
 }

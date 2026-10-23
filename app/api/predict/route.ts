@@ -6,6 +6,12 @@ export async function GET(request: NextRequest) {
   const locationId = searchParams.get("locationId") ?? "triveni";
 
   const loc = LOCATIONS.find((l) => l.id === locationId);
+  if (!loc) {
+    return NextResponse.json(
+      { error: "Unknown locationId", validLocations: LOCATIONS.map((l) => l.id) },
+      { status: 400 }
+    );
+  }
   const forecast = generateHourlyForecast(locationId);
 
   // Find peak hour
@@ -14,15 +20,15 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     locationId,
-    locationName: loc?.name ?? locationId,
+    locationName: loc.name,
     forecast,
     insights: {
       peakHour: peakHour.hour,
       peakCount: peakHour.predicted,
       safeWindows: safeHours.slice(0, 4),
       recommendation: peakHour.percentFull > 80
-        ? `Avoid ${loc?.name} during ${peakHour.hour}. Best times: ${safeHours.slice(0, 2).join(", ")}`
-        : `${loc?.name} remains manageable. Peak at ${peakHour.hour} but within safe limits.`,
+        ? `Avoid ${loc.name} during ${peakHour.hour}.${safeHours.length ? ` Best times: ${safeHours.slice(0, 2).join(", ")}` : " No low-crowd window in the next 24 hours."}`
+        : `${loc.name} remains manageable. Peak at ${peakHour.hour} but within safe limits.`,
     },
   });
 }

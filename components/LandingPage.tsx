@@ -199,7 +199,7 @@ export default function LandingPage({ onEnter }: { onEnter: () => void }) {
             MahaDrishti
           </h1>
           <p style={{ color: "rgba(255,248,238,0.75)", fontSize: "clamp(16px, 2.5vw, 22px)", lineHeight: 1.6, marginBottom: "0.75rem" }}>
-            AI-powered crowd intelligence for the world's largest human gathering.
+            AI-powered crowd intelligence for the world&apos;s largest human gathering.
           </p>
           <p style={{ color: "var(--text-muted)", fontSize: "clamp(13px, 1.8vw, 16px)", marginBottom: "2.5rem" }}>
             Real-time heatmaps · Route optimization · Predictive alerts · Pilgrim safety
@@ -448,7 +448,7 @@ backdropFilter: "blur(10px)",
               Protecting Every<br /><span className="shimmer-text">Pilgrim. Every Moment.</span>
             </h2>
             <p style={{ color: "var(--text-muted)", maxWidth: "480px", margin: "0 auto 2.5rem", lineHeight: 1.7 }}>
-              MahaDrishti brings AI to the world's greatest gathering — making Kumbh 2028 safer, smarter, and more divine than ever.
+              MahaDrishti brings AI to the world&apos;s greatest gathering — making Kumbh 2028 safer, smarter, and more divine than ever.
             </p>
             <motion.button
               onClick={onEnter}

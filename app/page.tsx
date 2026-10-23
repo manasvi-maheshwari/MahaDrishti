@@ -13,7 +13,7 @@ import LandingPage from "@/components/LandingPage";
 
 const CrowdMap = dynamic(() => import("@/components/CrowdMap"), { ssr: false });
 
-interface Reading { locationId: string; count: number; density: number; trend: string; temperature: number; }
+interface Reading { locationId: string; count: number; densityRatio: number; trend: string; temperature: number; }
 interface LocationData { id: string; name: string; type: string; lat: number; lng: number; capacity: number; zone: string; }
 interface Alert { id: string; locationId: string; locationName: string; severity: "low"|"medium"|"high"|"critical"; message: string; timestamp: string; type: string; }
 interface RouteOption { id: string; name: string; from: string; to: string; distance: string; estimatedTime: string; crowdLevel: string; status: "recommended"|"caution"|"avoid"; reason: string; }
@@ -80,9 +80,15 @@ export default function App() {
   }, [simulationMultiplier]);
 
   const fetchForecast = useCallback(async () => {
-    const res = await fetch(`/api/predict?locationId=${selectedLocation}`);
-    const data = await res.json();
-    setForecast(data.forecast ?? []);
+    try {
+      const res = await fetch(`/api/predict?locationId=${selectedLocation}`);
+      if (!res.ok) throw new Error(`Forecast request failed: ${res.status}`);
+      const data = await res.json();
+      setForecast(data.forecast ?? []);
+    } catch (e) {
+      console.error(e);
+      setForecast([]);
+    }
   }, [selectedLocation]);
 
   const fetchAdvisory = async () => {
@@ -95,18 +101,21 @@ export default function App() {
       });
       const data = await res.json();
       setAdvisory(data.advisory ?? "");
+    } catch (e) {
+      console.error(e);
+      setAdvisory("Advisory unavailable right now. Please try again.");
     } finally { setAdvisoryLoading(false); }
   };
 
   useEffect(() => {
-    fetchData(); fetchForecast();
+    // Fetching on mount/refresh; state is only set after the awaited response
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
     const i = setInterval(fetchData, 15000);
     return () => clearInterval(i);
-  }, [fetchData, fetchForecast]);
-  useEffect(() => {
-  setAdvisory("");
-}, [simulationMultiplier]);
-  useEffect(() => { fetchForecast(); }, [selectedLocation, fetchForecast]);
+  }, [fetchData]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchForecast(); }, [fetchForecast]);
 
   const getDensityColor = (d: number) => d >= 0.85 ? "#ef4444" : d >= 0.70 ? S.saffron : d >= 0.50 ? S.gold : "#22c55e";
   const getSeverityStyle = (s: string) => ({
@@ -249,7 +258,7 @@ export default function App() {
   max="6"
   step="0.1"
   value={simulationMultiplier}
-  onChange={(e) => setSimulationMultiplier(parseFloat(e.target.value))}
+  onChange={(e) => { setSimulationMultiplier(parseFloat(e.target.value)); setAdvisory(""); }}
   className="crowd-slider"
   style={{
     flex: 1,
@@ -342,7 +351,7 @@ export default function App() {
                         <tbody>
                           {readings.map(r => {
                             const loc = locations.find(l => l.id === r.locationId);
-                            const dc = getDensityColor(r.density);
+                            const dc = getDensityColor(r.densityRatio);
                             return (
                               <tr key={r.locationId} style={{ borderBottom: `1px solid rgba(255,107,26,0.06)`, transition: "background 0.2s" }}
                                 onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,107,26,0.05)")}
@@ -356,9 +365,9 @@ export default function App() {
                                 <td style={{ padding: "10px 14px", textAlign: "right" }}>
                                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px" }}>
                                     <div style={{ width: "56px", background: "rgba(255,255,255,0.08)", borderRadius: "3px", height: "5px" }}>
-                                      <div style={{ height: "5px", borderRadius: "3px", width: `${Math.round(r.density*100)}%`, background: dc, transition: "width 0.5s" }} />
+                                      <div style={{ height: "5px", borderRadius: "3px", width: `${Math.round(r.densityRatio*100)}%`, background: dc, transition: "width 0.5s" }} />
                                     </div>
-                                    <span style={{ fontSize: "12px", fontWeight: 600, color: dc, minWidth: "32px" }}>{Math.round(r.density*100)}%</span>
+                                    <span style={{ fontSize: "12px", fontWeight: 600, color: dc, minWidth: "32px" }}>{Math.round(r.densityRatio*100)}%</span>
                                   </div>
                                 </td>
                                 <td style={{ padding: "10px 14px", textAlign: "right" }}>
@@ -416,11 +425,11 @@ export default function App() {
                 <div style={{ ...cardStyle, padding: "1.25rem" }}>
                   <h2 style={{ fontSize: "14px", fontWeight: 600, color: S.cream, margin: "0 0 1rem" }}>Current Crowd Density by Location</h2>
                   <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={readings.map(r => ({name:locations.find(l=>l.id===r.locationId)?.name?.split(" ")[0]??r.locationId,density:Math.round(r.density*100)}))}>
+                    <BarChart data={readings.map(r => ({name:locations.find(l=>l.id===r.locationId)?.name?.split(" ")[0]??r.locationId,density:Math.round(r.densityRatio*100)}))}>
                       <XAxis dataKey="name" tick={{fontSize:11,fill:S.muted}} axisLine={false} tickLine={false} />
                       <YAxis tick={{fontSize:11,fill:S.muted}} axisLine={false} tickLine={false} domain={[0,100]} />
                       <Tooltip contentStyle={{background:S.indigoMid,border:`1px solid rgba(255,107,26,0.2)`,borderRadius:8,color:S.cream,fontSize:12}} formatter={(val)=>[`${val}%`,"Density"]} />
-                      <Bar dataKey="density" radius={[6,6,0,0]}>{readings.map((r,i)=><Cell key={i} fill={getDensityColor(r.density)} />)}</Bar>
+                      <Bar dataKey="density" radius={[6,6,0,0]}>{readings.map((r,i)=><Cell key={i} fill={getDensityColor(r.densityRatio)} />)}</Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

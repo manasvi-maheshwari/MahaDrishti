@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Map as LeafletMap, Circle } from "leaflet";
+import { THRESHOLDS } from "@/lib/crowdData";
 
 interface Reading {
   locationId: string;
   count: number;
-  density: number;
+  densityRatio: number;
   trend: string;
 }
 
@@ -23,34 +25,33 @@ interface Props {
   locations: LocationData[];
 }
 
+const getDensityColor = (density: number) => {
+  if (density >= THRESHOLDS.map.red) return "#ef4444";
+  if (density >= THRESHOLDS.map.orange) return "#f97316";
+  if (density >= THRESHOLDS.map.yellow) return "#eab308";
+  return "#22c55e";
+};
+
+const getRadius = (density: number, capacity: number) => {
+  const base = Math.min(Math.max(capacity / 50000, 1), 8) * 400;
+  return base + density * 600;
+};
+
 export default function CrowdMap({ readings, locations }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapInstanceRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markersRef = useRef<any[]>([]);
+  const mapInstanceRef = useRef<LeafletMap | null>(null);
+  const markersRef = useRef<Circle[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
-  const initializedRef = useRef(false);
-
-  const getDensityColor = (density: number) => {
-    if (density >= 0.85) return "#ef4444";
-    if (density >= 0.70) return "#f97316";
-    if (density >= 0.50) return "#eab308";
-    return "#22c55e";
-  };
-
-  const getRadius = (density: number, capacity: number) => {
-    const base = Math.min(Math.max(capacity / 50000, 1), 8) * 400;
-    return base + density * 600;
-  };
-
+  // Create the map once. The cancelled flag guards against React Strict Mode
+  // running cleanup before the async leaflet import has finished.
   useEffect(() => {
-    if (!mapRef.current || initializedRef.current) return;
+    let cancelled = false;
+    let map: LeafletMap | null = null;
 
-  initializedRef.current = true;
-    // Dynamically import leaflet to avoid SSR issues
     import("leaflet").then((L) => {
-      // Fix default marker icons
+      if (cancelled || !mapRef.current) return;
+
       delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -58,78 +59,76 @@ export default function CrowdMap({ readings, locations }: Props) {
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
       });
 
-      const container = mapRef.current! as HTMLElement & {
-  _leaflet_id?: number;
-};
-
-if (container._leaflet_id) {
-  delete container._leaflet_id;
-}
-
-const map = L.map(container, {
-  center: [25.4358, 81.8636],
-  zoom: 13,
-  zoomControl: true,
-});
+      map = L.map(mapRef.current, {
+        center: [25.4358, 81.8636],
+        zoom: 13,
+        zoomControl: true,
+      });
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
         maxZoom: 18,
       }).addTo(map);
 
-      mapInstanceRef.current = map;
+      L.marker([25.4358, 81.8836])
+        .addTo(map)
+        .bindPopup("<b>Triveni Sangam</b><br/>Holy confluence of Ganga, Yamuna & Saraswati")
+        .openPopup();
 
-      // Add Triveni Sangam label
-      L.marker([25.4358, 81.8836]).addTo(map).bindPopup("<b>Triveni Sangam</b><br/>Holy confluence of Ganga, Yamuna & Saraswati").openPopup();
+      mapInstanceRef.current = map;
+      setMapReady(true);
     });
 
     return () => {
-  if (mapInstanceRef.current) {
-    mapInstanceRef.current.remove();
-    mapInstanceRef.current = null;
-  }
-
-  initializedRef.current = false;
-};
+      cancelled = true;
+      markersRef.current = [];
+      if (map) {
+        map.remove();
+      }
+      mapInstanceRef.current = null;
+      setMapReady(false);
+    };
   }, []);
 
-  // Update circles when readings change
+  // Redraw circles whenever readings change or the map becomes ready
   useEffect(() => {
-    if (!mapInstanceRef.current || readings.length === 0) return;
+    const map = mapInstanceRef.current;
+    if (!mapReady || !map || readings.length === 0) return;
+
+    let cancelled = false;
 
     import("leaflet").then((L) => {
-      // Remove old circles
+      if (cancelled) return;
+
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+
+      const typeIcon: Record<string, string> = {
+        Ghat: "🏊", Temple: "🛕", Transport: "🚌", Camp: "⛺", Medical: "🏥",
+      };
 
       readings.forEach((reading) => {
         const loc = locations.find((l) => l.id === reading.locationId);
         if (!loc) return;
 
-        const color = getDensityColor(reading.density);
-        const radius = getRadius(reading.density, loc.capacity);
+        const color = getDensityColor(reading.densityRatio);
+        const radius = getRadius(reading.densityRatio, loc.capacity);
 
-        // Outer glow circle
         const glowCircle = L.circle([loc.lat, loc.lng], {
           radius: radius * 1.4,
-          color: color,
+          color,
           fillColor: color,
           fillOpacity: 0.08,
           weight: 0,
-        }).addTo(mapInstanceRef.current);
+        }).addTo(map);
 
-        // Main density circle
         const circle = L.circle([loc.lat, loc.lng], {
           radius,
-          color: color,
+          color,
           fillColor: color,
           fillOpacity: 0.35,
           weight: 2,
-        }).addTo(mapInstanceRef.current);
-
-        const typeIcon: Record<string, string> = {
-          Ghat: "🏊", Temple: "🛕", Transport: "🚌", Camp: "⛺", Medical: "🏥",
-        };
+        }).addTo(map);
 
         circle.bindPopup(`
           <div style="font-family: system-ui; min-width: 180px;">
@@ -142,7 +141,7 @@ const map = L.map(container, {
               </div>
               <div style="background: #f5f5f5; padding: 6px 8px; border-radius: 6px;">
                 <div style="color: #888;">Density</div>
-                <div style="font-weight: 600; color: ${color};">${Math.round(reading.density * 100)}%</div>
+                <div style="font-weight: 600; color: ${color};">${Math.round(reading.densityRatio * 100)}%</div>
               </div>
               <div style="background: #f5f5f5; padding: 6px 8px; border-radius: 6px;">
                 <div style="color: #888;">Capacity</div>
@@ -159,15 +158,16 @@ const map = L.map(container, {
         markersRef.current.push(glowCircle, circle);
       });
     });
-  }, [readings, locations]);
 
+    return () => {
+      cancelled = true;
+    };
+  }, [readings, locations, mapReady]);
+
+  // Leaflet CSS is loaded once in app/layout.tsx
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
     </div>
   );
 }
