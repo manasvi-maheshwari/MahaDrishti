@@ -31,10 +31,11 @@ export async function POST(request: NextRequest) {
   const alerts = generateAlerts(readings);
 
   const criticalLocs = readings
-    .filter((r) => r.densityRatio > 0.75)
-    .map((r) => {
+    .filter((r: any) => (r.densityRatio ?? r.density ?? 0) > 0.75)
+    .map((r: any) => {
+      const densityVal = r.densityRatio ?? r.density ?? 0;
       const loc = LOCATIONS.find((l) => l.id === r.locationId);
-      return `${loc?.name}: ${Math.round(r.densityRatio * 100)}% full, trend: ${r.trend}`;
+      return `${loc?.name ?? r.locationName}: ${Math.round(densityVal * 100)}% full, trend: ${r.trend}`;
     });
 
   const totalPilgrims = readings.reduce((s, r) => s + r.count, 0);
