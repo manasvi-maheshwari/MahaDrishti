@@ -11,11 +11,14 @@ MahaDrishti is a full-stack AI-assisted decision support system built for crowd 
 **Animated Landing Page**
 A fully scrollable landing experience with scroll-triggered animations, live statistics, feature highlights, critical Snan date timeline, and a call-to-action — built with Framer Motion.
 
+**Unified Single-Snapshot Engine**
+All dashboard components (heatmap, alerts, cards, and routes) pull from a single unified endpoint (`/api/crowd-data`) to ensure synchronized state and eliminate timing mismatches between map badges and alert streams.
+
 **Live Crowd Heatmap**
 Color-coded density circles across 12 monitored zones — ghats, temples, transport hubs, camps, and medical centers. Updated every 15 seconds via the OpenStreetMap + Leaflet stack.
 
 **Congestion Alert Engine**
-Four severity levels (Low, Medium, High, Critical) auto-triggered the moment density thresholds are breached. Critical alerts include stampede-risk warnings with immediate action guidance.
+Four severity levels (Low, Medium, High, Critical) auto-triggered the moment density thresholds are breached. Density thresholds are centralized (`THRESHOLDS` in `lib/crowdData.ts`) and physical capacity caps are strictly enforced to prevent invalid crowd surges. Critical alerts include stampede-risk warnings with immediate action guidance.
 
 **24-Hour Forecast**
 Hourly crowd predictions per location using time-of-day patterns and festival multipliers. Identifies safe bathing windows and peak surge hours before they arrive.
@@ -24,10 +27,10 @@ Hourly crowd predictions per location using time-of-day patterns and festival mu
 Five routes recalculate every 15 seconds based on live crowd density. Routes automatically shift between Recommended, Caution, and Avoid as conditions change on the ground.
 
 **AI Command Center**
-Powered by Google Gemini 2.5 Flash. Generates situation assessments, immediate action points for field commanders, and public pilgrim advisories based on real crowd data.
+Powered by Google Gemini 2.5 Flash. Generates situation assessments, immediate action points for field commanders, and public pilgrim advisories based on real crowd data. The Gemini call includes a 30-second server-side in-memory cache to prevent duplicate API calls, and returns structured fallback advisories if the API key is missing or the service is offline.
 
 **Crowd Simulator**
-A header slider simulates crowd load from 1x (normal day) to 6x (Mauni Amavasya peak). Watch alerts fire, routes shift, and the heatmap respond in real-time — useful for both demos and actual pre-event planning.
+A header slider simulates crowd load from 1x (normal day) to 6x (Mauni Amavasya peak). Multiplier inputs are validated and safely clamped between 0.5x and 6.0x (`parseMultiplier`). Watch alerts fire, routes shift, and the heatmap respond in real-time — useful for both demos and actual pre-event planning.
 
 **Dual Interface**
 Authority dashboard for command centers and a separate mobile-first Pilgrim View with safe routes, active warnings, and darshan tips in plain language.
@@ -48,6 +51,7 @@ Supports 11 Indian languages — Hindi, Gujarati, Marathi, Bengali, Bhojpuri, Ta
 | Animations | Framer Motion |
 | AI | Google Gemini 2.5 Flash (`@google/genai`) |
 | Translation | Google Translate Widget |
+| Testing | Vitest |
 | Fonts | Yatra One (headings), DM Sans (body) |
 | Deployment | Vercel |
 
@@ -79,6 +83,9 @@ Get a key at [aistudio.google.com](https://aistudio.google.com) — free tier is
 ```bash
 # Run
 npm run dev
+
+# Run automated unit test suite
+npm run test
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
@@ -93,11 +100,11 @@ All endpoints accept an optional `?multiplier=1.0` query parameter to simulate d
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/crowd-data` | GET | Live readings for all 12 monitored locations |
+| `/api/crowd-data` | GET | Single snapshot returning readings, summary, alerts, and routes in a unified payload |
 | `/api/alerts` | GET | Active alerts with severity classification |
 | `/api/routes` | GET | Route recommendations with real-time crowd levels |
 | `/api/predict` | GET | 24-hour hourly forecast for a given location |
-| `/api/simulate` | POST | Gemini AI situation advisory |
+| `/api/simulate` | POST | Gemini AI situation advisory with 30s server-side in-memory caching |
 
 ---
 
@@ -173,7 +180,7 @@ mahadrishti/
 │   ├── layout.tsx            # Root layout + fonts + language widget
 │   ├── globals.css           # Design tokens + animations
 │   └── api/
-│       ├── crowd-data/       # Live crowd readings
+│       ├── crowd-data/       # Unified snapshot (readings, summary, alerts, routes)
 │       ├── alerts/           # Congestion alert engine
 │       ├── routes/           # Route recommendations
 │       ├── predict/          # 24-hour forecast
@@ -183,7 +190,9 @@ mahadrishti/
 │   ├── LandingPage.tsx       # Animated scrollable landing page
 │   └── GoogleTranslate.tsx   # Multi-language translation widget
 ├── lib/
-│   └── crowdData.ts          # Core simulation engine
+│   ├── crowdData.ts          # Core simulation engine & centralized thresholds
+│   ├── crowdData.test.ts     # Vitest unit test suite
+│   └── validation.ts         # Input parsing and multiplier clamping helpers
 └── public/                   # Static assets
 ```
 

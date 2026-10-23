@@ -1,3 +1,23 @@
+export const THRESHOLDS = {
+  alert: {
+    critical: 0.92,
+    high: 0.80,
+    surge: 0.65,
+  },
+  map: {
+    yellow: 0.50,
+    orange: 0.70,
+    red: 0.85,
+  },
+  summary: {
+    high: 0.70,
+    critical: 0.85,
+  },
+  advisory: {
+    highDensity: 0.75,
+  },
+} as const;
+
 export interface Location {
   id: string;
   name: string;
@@ -56,15 +76,15 @@ export const LOCATIONS: Location[] = [
   { id: "central_hospital", name: "Central Medical Hub", type: "Medical", lat: 25.4420, lng: 81.8450, capacity: 5000, zone: "Central" },
 ];
 
-// Festival event schedule (Snan dates generate massive spikes)
-export const SNAN_DATES = [
-  { date: "2028-01-14", name: "Makar Sankranti", multiplier: 4.5 },
-  { date: "2028-01-15", name: "Makar Sankranti (cont.)", multiplier: 3.8 },
-  { date: "2028-01-28", name: "Mauni Amavasya", multiplier: 6.0 },
-  { date: "2028-02-02", name: "Basant Panchami", multiplier: 4.2 },
-  { date: "2028-02-11", name: "Maghi Purnima", multiplier: 3.5 },
-  { date: "2028-03-01", name: "Maha Shivratri", multiplier: 4.0 },
-];
+// // Festival event schedule (Snan dates generate massive spikes)
+// export const SNAN_DATES = [
+//   { date: "2028-01-14", name: "Makar Sankranti", multiplier: 4.5 },
+//   { date: "2028-01-15", name: "Makar Sankranti (cont.)", multiplier: 3.8 },
+//   { date: "2028-01-28", name: "Mauni Amavasya", multiplier: 6.0 },
+//   { date: "2028-02-02", name: "Basant Panchami", multiplier: 4.2 },
+//   { date: "2028-02-11", name: "Maghi Purnima", multiplier: 3.5 },
+//   { date: "2028-03-01", name: "Maha Shivratri", multiplier: 4.0 },
+// ];
 
 // Simulate realistic crowd data based on time of day
 export function simulateCrowdData(simulationMultiplier = 1.0): CrowdReading[] {
@@ -80,25 +100,29 @@ export function simulateCrowdData(simulationMultiplier = 1.0): CrowdReading[] {
     const noise = 0.85 + Math.random() * 0.30; // ±15% random variation
     const locationFactor = getLocationFactor(loc.id, hour);
 
-    const count = Math.floor(
-  loc.capacity *
-  baseLoad *
-  timePattern *
-  locationFactor *
-  noise *
-  simulationMultiplier *
-  1.8
-);
+    const count = Math.min(
+      Math.floor(
+        loc.capacity *
+        baseLoad *
+        timePattern *
+        locationFactor *
+        noise *
+        simulationMultiplier
+      ),
+      loc.capacity
+    );
 
-    const density = Math.min(count / loc.capacity, 1.0);
+    const densityRatio = Math.min(count / loc.capacity, 1.0);
     const prevDensity = Math.min((count * 0.97) / loc.capacity, 1.0);
 
     return {
       locationId: loc.id,
+      locationName: loc.name,
+      capacity: loc.capacity,
       timestamp: now.toISOString(),
-      count: Math.min(count, loc.capacity),
-      density: parseFloat(density.toFixed(3)),
-      trend: density > prevDensity + 0.02 ? "rising" : density < prevDensity - 0.02 ? "falling" : "stable",
+      count,
+      densityRatio: parseFloat(densityRatio.toFixed(3)),
+      trend: densityRatio > prevDensity + 0.02 ? "rising" : densityRatio < prevDensity - 0.02 ? "falling" : "stable",
       temperature: Math.floor(12 + Math.random() * 8),
     };
   });
@@ -137,49 +161,42 @@ function getLocationFactor(id: string, hour: number): number {
 
 export function generateAlerts(readings: CrowdReading[]): Alert[] {
   const alerts: Alert[] = [];
-  const now = new Date().toISOString();
 
-  readings.forEach((reading) => {
-    const loc = LOCATIONS.find((l) => l.id === reading.locationId);
-    if (!loc) return;
-
-    if (reading.density >= 0.92) {
+  for (const r of readings) {
+    if (r.densityRatio >= THRESHOLDS.alert.critical) {
       alerts.push({
-        id: `alert-${reading.locationId}-critical`,
-        locationId: reading.locationId,
-        locationName: loc.name,
-        severity: "critical",
-        message: `CRITICAL: ${loc.name} at ${Math.round(reading.density * 100)}% capacity. Stampede risk detected. Deploy emergency personnel immediately.`,
-        timestamp: now,
-        type: "stampede_risk",
+        id: `alert-${r.locationId}-${Date.now()}`,
+        locationId: r.locationId,
+        locationName: r.locationName,
+        type: 'capacity',
+        severity: 'critical',
+        message: `CRITICAL OVERCROWDING at ${r.locationName}: Capacity at ${Math.round(r.densityRatio * 100)}%`,
+        timestamp: new Date().toISOString(),
       });
-    } else if (reading.density >= 0.80) {
+    } else if (r.densityRatio >= THRESHOLDS.alert.high) {
       alerts.push({
-        id: `alert-${reading.locationId}-high`,
-        locationId: reading.locationId,
-        locationName: loc.name,
-        severity: "high",
-        message: `HIGH: ${loc.name} overcrowded (${Math.round(reading.density * 100)}% capacity). Activate alternate route protocols.`,
-        timestamp: now,
-        type: "overcrowding",
+        id: `alert-${r.locationId}-${Date.now()}`,
+        locationId: r.locationId,
+        locationName: r.locationName,
+        type: 'capacity',
+        severity: 'high',
+        message: `High density alert at ${r.locationName}: Density at ${Math.round(r.densityRatio * 100)}%`,
+        timestamp: new Date().toISOString(),
       });
-    } else if (reading.density >= 0.65 && reading.trend === "rising") {
+    } else if (r.densityRatio >= THRESHOLDS.alert.surge && r.trend === 'rising') {
       alerts.push({
-        id: `alert-${reading.locationId}-medium`,
-        locationId: reading.locationId,
-        locationName: loc.name,
-        severity: "medium",
-        message: `SURGE: ${loc.name} crowd rising rapidly. Currently at ${Math.round(reading.density * 100)}% — monitor closely.`,
-        timestamp: now,
-        type: "surge",
+        id: `alert-${r.locationId}-${Date.now()}`,
+        locationId: r.locationId,
+        locationName: r.locationName,
+        type: 'surge',
+        severity: 'medium',
+        message: `Rapid crowd accumulation detected at ${r.locationName}`,
+        timestamp: new Date().toISOString(),
       });
     }
-  });
+  }
 
-  return alerts.sort((a, b) => {
-    const order = { critical: 0, high: 1, medium: 2, low: 3 };
-    return order[a.severity] - order[b.severity];
-  });
+  return alerts;
 }
 
 export function generateHourlyForecast(locationId: string) {
@@ -272,4 +289,34 @@ export function getRouteRecommendations(readings: CrowdReading[]): RouteOption[]
       reason: "Main arterial route — may experience delays during peak bathing hours",
     },
   ];
+}
+
+export function buildSnapshot(multiplier: number = 1.0) {
+  const timestamp = new Date().toISOString();
+  const rawReadings = simulateCrowdData(multiplier);
+  
+  // Calculate aggregate summary
+  const totalCrowd = rawReadings.reduce((sum, r) => sum + r.count, 0);
+  const totalCapacity = rawReadings.reduce((sum, r) => sum + r.capacity, 0);
+  const avgDensity = Math.round((totalCrowd / totalCapacity) * 100);
+
+  const summary = {
+    totalCrowd,
+    totalCapacity,
+    avgDensity,
+    criticalZones: rawReadings.filter(r => r.densityRatio >= 0.85).length,
+    highZones: rawReadings.filter(r => r.densityRatio >= 0.70 && r.densityRatio < 0.85).length,
+    activeAlertsCount: generateAlerts(rawReadings).length
+  };
+
+  const alerts = generateAlerts(rawReadings);
+  const routes = getRouteRecommendations(rawReadings);
+
+  return {
+    timestamp,
+    readings: rawReadings,
+    summary,
+    alerts,
+    routes
+  };
 }

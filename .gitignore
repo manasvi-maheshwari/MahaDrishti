@@ -1,0 +1,34 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Next.js build output
+/.next/
+/out/
+
+# Production builds
+/build
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment variables and secrets
+.env
+.env*.local
+.env.local
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Operating system / IDE files
+.DS_Store
+*.pem
+.vscode/
+.idea/
+
+# Zip files and archives
+*.zip

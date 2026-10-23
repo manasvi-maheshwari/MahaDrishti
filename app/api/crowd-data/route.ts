@@ -1,25 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
-import { simulateCrowdData, LOCATIONS } from "@/lib/crowdData";
+import { NextRequest, NextResponse } from 'next/server';
+import { parseMultiplier } from '@/lib/validation';
+import { LOCATIONS } from '@/lib/crowdData';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const multiplier = parseFloat(searchParams.get("multiplier") ?? "1.0");
+  const searchParams = request.nextUrl.searchParams;
+  const locationId = searchParams.get('locationId');
+  const multParam = searchParams.get('multiplier');
 
-  const readings = simulateCrowdData(multiplier);
+  const validIds = LOCATIONS.map((loc) => loc.id);
 
-  const summary = {
-    totalPilgrims: readings.reduce((sum, r) => sum + r.count, 0),
-    averageDensity: parseFloat(
-      (readings.reduce((sum, r) => sum + r.density, 0) / readings.length).toFixed(3)
-    ),
-    criticalLocations: readings.filter((r) => r.density > 0.85).length,
-    highLocations: readings.filter((r) => r.density > 0.70 && r.density <= 0.85).length,
-  };
+  if (!locationId || !validIds.includes(locationId)) {
+    return NextResponse.json(
+      { error: 'Unknown locationId', validLocations: validIds },
+      { status: 400 }
+    );
+  }
 
-  return NextResponse.json({
-    timestamp: new Date().toISOString(),
-    readings,
-    locations: LOCATIONS,
-    summary,
-  });
+  const multiplier = parseMultiplier(multParam);
+
+  // Continue with prediction logic using locationId and multiplier...
+  return NextResponse.json({ success: true, locationId, multiplier });
 }

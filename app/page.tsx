@@ -63,22 +63,20 @@ export default function App() {
   const fetchData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [crowdRes, alertsRes, routesRes] = await Promise.all([
-        fetch(`/api/crowd-data?multiplier=${simulationMultiplier}`),
-        fetch(`/api/alerts?multiplier=${simulationMultiplier}`),
-        fetch(`/api/routes?multiplier=${simulationMultiplier}`),
-      ]);
-      const [crowdData, alertsData, routesData] = await Promise.all([
-        crowdRes.json(), alertsRes.json(), routesRes.json(),
-      ]);
-      setReadings(crowdData.readings ?? []);
-      setLocations(crowdData.locations ?? []);
-      setSummary(crowdData.summary ?? {});
-      setAlerts(alertsData.alerts ?? []);
-      setRoutes(routesData.routes ?? []);
+      const res = await fetch(`/api/crowd-data?multiplier=${simulationMultiplier}`);
+      const data = await res.json();
+
+      setReadings(data.readings ?? []);
+      setLocations(data.locations ?? []);
+      setSummary(data.summary ?? {});
+      setAlerts(data.alerts ?? []);
+      setRoutes(data.routes ?? []);
       setLastUpdated(new Date().toLocaleTimeString("en-IN"));
-    } catch (e) { console.error(e); }
-    finally { setIsRefreshing(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [simulationMultiplier]);
 
   const fetchForecast = useCallback(async () => {

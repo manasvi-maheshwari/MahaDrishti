@@ -1,21 +1,71 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 import { simulateCrowdData, generateAlerts, LOCATIONS } from "@/lib/crowdData";
+import { parseMultiplier } from "@/lib/validation";
+
+// Simple in-memory cache store for Gemini simulation responses
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+const advisoryCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 30 * 1000; // 30 seconds cooldown
 
 export async function POST(request: NextRequest) {
-  const { multiplier = 1.0 } = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({}));
+  const multiplier = parseMultiplier(body.multiplier);
+
+  // Check in-memory cache
+  const cacheKey = `mult-${multiplier.toFixed(1)}`;
+  const cached = advisoryCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return NextResponse.json({
+      ...cached.data,
+      cached: true,
+    });
+  }
 
   const readings = simulateCrowdData(multiplier);
   const alerts = generateAlerts(readings);
 
   const criticalLocs = readings
-    .filter((r) => r.density > 0.75)
+    .filter((r) => r.densityRatio > 0.75)
     .map((r) => {
       const loc = LOCATIONS.find((l) => l.id === r.locationId);
-      return `${loc?.name}: ${Math.round(r.density * 100)}% full, trend: ${r.trend}`;
+      return `${loc?.name}: ${Math.round(r.densityRatio * 100)}% full, trend: ${r.trend}`;
     });
 
   const totalPilgrims = readings.reduce((s, r) => s + r.count, 0);
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  // Fallback response helper function
+  const getFallbackData = (reason: string) => {
+    const actions = criticalLocs.length > 0 
+      ? [
+          "Deploy crowd control officers to high-density choke points",
+          "Activate digital variable message signage for alternate routes",
+          "Put medical standby teams on high alert in affected sectors"
+        ]
+      : [
+          "Maintain standard gate oversight and perimeter monitoring",
+          "Keep designated emergency corridors clear of obstruction",
+          "Monitor entry counts at primary transit hubs"
+        ];
+
+    return {
+      source: "fallback",
+      reason,
+      advisory: `SITUATION ASSESSMENT:\n${criticalLocs.length} high-density zones active with approximately ${totalPilgrims.toLocaleString()} pilgrims across sectors. Monitoring protocols engaged.\n\nIMMEDIATE ACTIONS:\n- ${actions[0]}\n- ${actions[1]}\n- ${actions[2]}\n\nPILGRIM ADVISORY:\nPlease follow marked routes and avoid overcrowded ghats — use alternate paths for safe darshan.`,
+      timestamp: new Date().toISOString(),
+    };
+  };
+
+  // Check if API key exists before trying to call Gemini
+  if (!apiKey) {
+    return NextResponse.json(getFallbackData("Missing API Key"));
+  }
 
   const prompt = `You are an AI command center analyst for MahaKumbh 2028 crowd management in Prayagraj.
 
@@ -33,26 +83,29 @@ Give a concise 3-part situation report:
 Be specific, use location names, be action-oriented. Keep total response under 200 words.`;
 
   try {
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY!,
-  });
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-
-  const text =
-    response.text ?? "AI advisory unavailable.";
-
-  return NextResponse.json({
-    advisory: text,
-    timestamp: new Date().toISOString(),
-  });
-} catch {
-    return NextResponse.json({
-      advisory: `SITUATION: ${criticalLocs.length} high-density zones detected with ${totalPilgrims.toLocaleString()} pilgrims. Monitoring active.\n\nIMEDIATE ACTIONS:\n• Deploy crowd control to high-density zones\n• Activate alternate route signage\n• Alert medical teams for standby\n\nPILGRIM ADVISORY: Please follow marked routes and avoid overcrowded ghats — use alternate paths for safe darshan.`,
-      timestamp: new Date().toISOString(),
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
     });
+
+    const text = response.text ?? "AI advisory unavailable.";
+
+    const responseData = {
+      source: "gemini",
+      advisory: text,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Save result to cache before returning
+    advisoryCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now(),
+    });
+
+    return NextResponse.json(responseData);
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return NextResponse.json(getFallbackData("API Error"));
   }
 }
