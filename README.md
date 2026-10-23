@@ -2,7 +2,11 @@
 
 **Real-time AI crowd intelligence for MahaKumbh 2028, Prayagraj**
 
+**Live demo:** [maha-drishti.vercel.app](https://maha-drishti.vercel.app)
+
 MahaDrishti is a full-stack AI-assisted decision support system built for crowd management authorities and pilgrims at MahaKumbh 2028. It monitors 12 key locations across Prayagraj in real-time, predicts crowd surges before they happen, recommends safe routes dynamically, generates field advisories using Google Gemini AI, and supports 11 Indian languages for maximum accessibility.
+
+> **Note on data:** crowd readings come from a built-in simulation engine (time-of-day patterns in India time, location profiles, and random variation), not live sensors. The API layer is designed so real sensor or camera feeds can replace the simulator without changing the dashboard.
 
 ---
 
@@ -27,10 +31,10 @@ Hourly crowd predictions per location using time-of-day patterns and festival mu
 Five routes recalculate every 15 seconds based on live crowd density. Routes automatically shift between Recommended, Caution, and Avoid as conditions change on the ground.
 
 **AI Command Center**
-Powered by Google Gemini 2.5 Flash. Generates situation assessments, immediate action points for field commanders, and public pilgrim advisories based on real crowd data. The Gemini call includes a 30-second server-side in-memory cache to prevent duplicate API calls, and returns structured fallback advisories if the API key is missing or the service is offline.
+Powered by Google Gemini 2.5 Flash. Generates situation assessments, immediate action points for field commanders, and public pilgrim advisories based on real crowd data. The Gemini call includes a 30-second server-side in-memory cache to prevent duplicate API calls, and returns structured fallback advisories if the API key is missing or the service is offline. The endpoint is rate-limited per client, and the prompt restricts Gemini to the 12 monitored locations so it cannot invent place names.
 
 **Crowd Simulator**
-A header slider simulates crowd load from 1x (normal day) to 6x (Mauni Amavasya peak). Multiplier inputs are validated and safely clamped between 0.5x and 6.0x (`parseMultiplier`). Watch alerts fire, routes shift, and the heatmap respond in real-time — useful for both demos and actual pre-event planning.
+A header slider simulates crowd load from 1x (normal day) to 6x (Mauni Amavasya peak). Multiplier inputs are validated and safely clamped between 0.5x and 6.0x (`parseMultiplier`), and load is compressed with a soft cap so zones stay differentiated instead of all hitting 100%. Watch alerts fire, routes shift, and the heatmap respond in real-time — useful for both demos and actual pre-event planning.
 
 **Dual Interface**
 Authority dashboard for command centers and a separate mobile-first Pilgrim View with safe routes, active warnings, and darshan tips in plain language.
@@ -104,7 +108,7 @@ All endpoints accept an optional `?multiplier=1.0` query parameter to simulate d
 | `/api/alerts` | GET | Active alerts with severity classification |
 | `/api/routes` | GET | Route recommendations with real-time crowd levels |
 | `/api/predict` | GET | 24-hour hourly forecast for a given location |
-| `/api/simulate` | POST | Gemini AI situation advisory with 30s server-side in-memory caching |
+| `/api/simulate` | POST | Gemini AI situation advisory with 30s server-side in-memory caching and per-client rate limiting (10 requests/min) |
 
 ---
 
@@ -129,12 +133,14 @@ All endpoints accept an optional `?multiplier=1.0` query parameter to simulate d
 
 ## Simulator Guide
 
+Results depend on the time of day (India time), since pilgrim load peaks at dawn, mid-morning and evening.
+
 | Multiplier | Scenario | Expected Behavior |
 |------------|----------|-------------------|
-| 1x | Normal day | Most zones green, no alerts |
-| 2x | Festival day | Moderate alerts at major ghats |
-| 4x | Snan day | High alerts, route shifts |
-| 6x | Mauni Amavasya | Critical alerts, stampede warnings |
+| 1x | Normal day | Most zones green or yellow, few or no alerts |
+| 2x | Festival day | Busy ghats move to orange during peak hours |
+| 4x | Snan day | High alerts and route shifts at peak hours |
+| 6x | Mauni Amavasya | Most zones critical at peak hours, stampede warnings |
 
 ---
 
@@ -192,6 +198,7 @@ mahadrishti/
 ├── lib/
 │   ├── crowdData.ts          # Core simulation engine & centralized thresholds
 │   ├── crowdData.test.ts     # Vitest unit test suite
+│   ├── rateLimit.ts          # In-memory rate limiter for the AI endpoint
 │   └── validation.ts         # Input parsing and multiplier clamping helpers
 └── public/                   # Static assets
 ```

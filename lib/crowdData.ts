@@ -96,34 +96,44 @@ export const LOCATIONS: Location[] = [
 //   { date: "2028-03-01", name: "Maha Shivratri", multiplier: 4.0 },
 // ];
 
-// Simulate realistic crowd data based on time of day
-export function simulateCrowdData(simulationMultiplier = 1.0): CrowdReading[] {
-  const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
+// The server (e.g. Vercel) runs in UTC, so always derive time of day in India time
+export function getIndiaTime(date: Date = new Date()): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { hour: get("hour") % 24, minute: get("minute") };
+}
 
-  // Time-of-day crowd pattern (0-1 multiplier)
+// Smoothly compresses load towards 1.0 so high multipliers stay differentiated
+// between zones instead of every zone slamming into its capacity cap.
+// softCap(x) ~= x for small x, and approaches 1 for large x.
+function softCap(x: number): number {
+  return x / Math.pow(1 + Math.pow(x, 4), 0.25);
+}
+
+// Simulate realistic crowd data based on time of day
+export function simulateCrowdData(simulationMultiplier = 1.0, now: Date = new Date()): CrowdReading[] {
+  const { hour, minute } = getIndiaTime(now);
+  const t = hour + minute / 60;
+
+  // Time-of-day crowd pattern (0-1 multiplier) and where it is heading in 15 min
   const timePattern = getTimeMultiplier(hour, minute);
+  const nextPattern = getTimeMultiplier(Math.floor((t + 0.25) % 24), Math.round(((t + 0.25) % 1) * 60) % 60);
+  const ratio = timePattern > 0 ? nextPattern / timePattern : 1;
+  const trend: CrowdReading["trend"] = ratio > 1.03 ? "rising" : ratio < 0.97 ? "falling" : "stable";
 
   return LOCATIONS.map((loc) => {
     const baseLoad = getBaseLoadForType(loc.type);
     const noise = 0.85 + Math.random() * 0.30; // ±15% random variation
     const locationFactor = getLocationFactor(loc.id, hour);
 
-    const count = Math.min(
-      Math.floor(
-        loc.capacity *
-        baseLoad *
-        timePattern *
-        locationFactor *
-        noise *
-        simulationMultiplier
-      ),
-      loc.capacity
-    );
-
+    const rawLoad = baseLoad * timePattern * locationFactor * noise * Math.pow(simulationMultiplier, 0.7);
+    const count = Math.min(Math.floor(loc.capacity * softCap(rawLoad)), loc.capacity);
     const densityRatio = Math.min(count / loc.capacity, 1.0);
-    const prevDensity = Math.min((count * 0.97) / loc.capacity, 1.0);
 
     return {
       locationId: loc.id,
@@ -132,7 +142,7 @@ export function simulateCrowdData(simulationMultiplier = 1.0): CrowdReading[] {
       timestamp: now.toISOString(),
       count,
       densityRatio: parseFloat(densityRatio.toFixed(3)),
-      trend: densityRatio > prevDensity + 0.02 ? "rising" : densityRatio < prevDensity - 0.02 ? "falling" : "stable",
+      trend,
       temperature: Math.floor(12 + Math.random() * 8),
     };
   });
@@ -211,22 +221,21 @@ export function generateAlerts(readings: CrowdReading[]): Alert[] {
 
 export function generateHourlyForecast(locationId: string) {
   const forecasts = [];
-  const now = new Date();
+  const now = Date.now();
+  const loc = LOCATIONS.find((l) => l.id === locationId);
+  const cap = loc?.capacity ?? 100000;
+  const factor = locationId === "triveni" ? 1.0 : 0.75;
 
   for (let i = 0; i < 24; i++) {
-    const futureHour = new Date(now);
-    futureHour.setHours(now.getHours() + i);
-    const h = futureHour.getHours();
+    const futureHour = new Date(now + i * 60 * 60 * 1000);
+    const { hour: h } = getIndiaTime(futureHour);
     const base = getTimeMultiplier(h, 0);
-    const loc = LOCATIONS.find((l) => l.id === locationId);
-    const cap = loc?.capacity ?? 100000;
-    const factor = locationId === "triveni" ? 1.0 : 0.75;
     const rawPredicted = Math.floor(cap * base * factor * getBaseLoadForType(loc?.type ?? "Ghat") * (0.90 + Math.random() * 0.20));
     const predicted = Math.min(rawPredicted, cap);
 
     forecasts.push({
-      hour: futureHour.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
-      predicted: Math.min(predicted, cap),
+      hour: futureHour.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }),
+      predicted,
       capacity: cap,
       percentFull: parseFloat(((predicted / cap) * 100).toFixed(1)),
     });

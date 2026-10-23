@@ -109,6 +109,10 @@ export default function App() {
         body: JSON.stringify({ multiplier: simulationMultiplier }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setAdvisory(data.error ?? "Advisory unavailable right now. Please try again.");
+        return;
+      }
       setAdvisory(cleanAdvisory(data.advisory ?? ""));
     } catch (e) {
       console.error(e);
@@ -127,12 +131,6 @@ export default function App() {
   useEffect(() => { fetchForecast(); }, [fetchForecast]);
 
   const getDensityColor = (d: number) => d >= 0.85 ? "#ef4444" : d >= 0.70 ? S.saffron : d >= 0.50 ? S.gold : "#22c55e";
-  const getSeverityStyle = (s: string) => ({
-    critical: "border-l-red-500",
-    high: "border-l-orange-400",
-    medium: "border-l-yellow-400",
-  } as Record<string,string>)[s] ?? "border-l-blue-400";
-
   const getStatusBadge = (s: string) => ({
     recommended: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", border: "rgba(34,197,94,0.3)" },
     caution: { bg: "rgba(255,215,0,0.15)", color: S.gold, border: "rgba(255,215,0,0.3)" },

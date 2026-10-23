@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 import { simulateCrowdData, generateAlerts, LOCATIONS, THRESHOLDS } from "@/lib/crowdData";
 import { parseMultiplier } from "@/lib/validation";
+import { isRateLimited, getClientIp } from "@/lib/rateLimit";
 
 // Simple in-memory cache store for Gemini simulation responses
 interface CacheEntry {
@@ -13,6 +14,13 @@ const advisoryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 30 * 1000; // 30 seconds cooldown
 
 export async function POST(request: NextRequest) {
+  if (isRateLimited(getClientIp(request.headers))) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a minute and try again." },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const multiplier = parseMultiplier(body.multiplier);
 
