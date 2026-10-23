@@ -19,6 +19,15 @@ interface Alert { id: string; locationId: string; locationName: string; severity
 interface RouteOption { id: string; name: string; from: string; to: string; distance: string; estimatedTime: string; crowdLevel: string; status: "recommended"|"caution"|"avoid"; reason: string; }
 interface ForecastPoint { hour: string; predicted: number; capacity: number; percentFull: number; }
 
+// Gemini replies in markdown; show it as clean plain text
+function cleanAdvisory(text: string): string {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/^\s*[*-]\s+/gm, "\u2022 ")
+    .replace(/^\s*(here is|here's)[^\n]*\n+/i, "")
+    .trim();
+}
+
 const S = {
   saffron: "#FF6B1A",
   saffronLight: "#FF8C42",
@@ -100,7 +109,7 @@ export default function App() {
         body: JSON.stringify({ multiplier: simulationMultiplier }),
       });
       const data = await res.json();
-      setAdvisory(data.advisory ?? "");
+      setAdvisory(cleanAdvisory(data.advisory ?? ""));
     } catch (e) {
       console.error(e);
       setAdvisory("Advisory unavailable right now. Please try again.");
